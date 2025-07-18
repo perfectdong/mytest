@@ -978,27 +978,14 @@ def parse_single_json_node(item):
 def download_xray_core():
     """
     自动下载并解压适合当前操作系统的Xray核心程序。
-    支持macOS、Linux、Windows，并兼容GitHub Actions环境。
+    支持macOS、Linux、Windows。
     """
     import sys
     import tarfile
     import zipfile
     import stat
-
-    # 优先从环境变量读取（适配GitHub Actions）
     import os
-    gh_os = os.environ.get("GITHUB_WORKFLOW_OS", "").lower()
-    if gh_os:
-        if "ubuntu" in gh_os or "linux" in gh_os:
-            system = "Linux"
-        elif "macos" in gh_os or "darwin" in gh_os:
-            system = "Darwin"
-        elif "windows" in gh_os:
-            system = "Windows"
-        else:
-            system = platform.system()
-    else:
-        system = platform.system()
+    system = platform.system()
     arch = platform.machine().lower()
     if arch in ["x86_64", "amd64"]:
         arch = "64"
@@ -1063,22 +1050,10 @@ def download_xray_core():
 def find_core_program():
     """
     查找或自动下载适合本系统的Xray核心程序。
-    支持GitHub Actions环境变量GITHUB_WORKFLOW_OS。
     """
     global CORE_PATH
     import os
-    gh_os = os.environ.get("GITHUB_WORKFLOW_OS", "").lower()
-    if gh_os:
-        if "ubuntu" in gh_os or "linux" in gh_os:
-            system = "Linux"
-        elif "macos" in gh_os or "darwin" in gh_os:
-            system = "Darwin"
-        elif "windows" in gh_os:
-            system = "Windows"
-        else:
-            system = platform.system()
-    else:
-        system = platform.system()
+    system = platform.system()
     arch = platform.machine().lower()
     if arch in ["x86_64", "amd64"]:
         arch = "64"
