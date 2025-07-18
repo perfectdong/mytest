@@ -1732,6 +1732,7 @@ def main():
     
     # 新增：保存所有去重合并后的节点到all.txt（原始格式）
     try:
+        print(f"准备写入 all.txt，当前工作目录: {os.getcwd()}")
         all_uris = []
         for node in all_nodes:
             uri = node_to_v2ray_uri(node)
@@ -1742,6 +1743,7 @@ def main():
         print(f"\n已将所有去重合并后的节点保存到 all.txt 文件")
     except Exception as e:
         print(f"保存all.txt失败: {e}")
+        print("请检查GitHub Actions是否有写入权限，或 workflow 是否将 all.txt 文件 git add 并提交。")
     
     # 将所有URI合并为一个字符串，并进行base64编码
     if valid_uri_count > 0:
