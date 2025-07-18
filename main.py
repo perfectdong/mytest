@@ -25,8 +25,7 @@ links = [
     "https://raw.githubusercontent.com/dl250/dl250/refs/heads/master/node.txt", 
     "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/refs/heads/main/speednodes.txt", 
     "https://github.com/peasoft/NoMoreWalls/blob/master/list.meta.yml", 
-    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/trial.yaml",   
-    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/data/520.yaml",       
+    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/trial.yaml",        
 ]
 
 # 测试使用
