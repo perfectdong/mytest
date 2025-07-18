@@ -1902,22 +1902,24 @@ def main():
     print(f"去重前节点数量: {len(all_nodes)}")
     all_nodes = remove_duplicates(all_nodes)
     print(f"去重后节点数量: {len(all_nodes)}")
-    # 保存去重后的所有节点到all.txt
+    # 保存去重后的所有节点到all.txt（仿照v2ray.txt写法）
     all_uris = []
     for node in all_nodes:
         uri = node_to_v2ray_uri(node)
         if uri:
             all_uris.append(uri)
+    all_txt_path = os.path.join(os.getcwd(), "all.txt")
     try:
-        all_txt_path = os.path.join(os.getcwd(), "all.txt")
-        print(f"[DEBUG] 正在写入all.txt到: {all_txt_path}")
+        all_content = '\n'.join(all_uris)
         with open(all_txt_path, "w", encoding="utf-8") as f:
-            for uri in all_uris:
-                f.write(uri + "\n")
-        if os.path.exists(all_txt_path):
+            f.write(all_content)
+        # 立即读取确认写入
+        with open(all_txt_path, "r", encoding="utf-8") as f:
+            check_content = f.read()
+        if check_content.strip() == all_content.strip():
             print(f"已将 {len(all_uris)} 个去重节点保存到 all.txt 文件: {all_txt_path}")
         else:
-            print("[ERROR] all.txt 写入后未检测到文件，请检查写入权限或路径。")
+            print(f"[ERROR] all.txt 写入后内容校验失败，请检查写入权限或路径。")
     except Exception as e:
         print(f"[ERROR] 写入all.txt失败: {e}")
     # Xray测速
