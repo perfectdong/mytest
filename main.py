@@ -24,7 +24,7 @@ links = [
     "https://raw.githubusercontent.com/jgchengxin/ssr_subscrible_tool/refs/heads/master/node.txt",
     "https://raw.githubusercontent.com/dl250/dl250/refs/heads/master/node.txt", 
     "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/refs/heads/main/speednodes.txt", 
-    "https://raw.githubusercontent.com/peasoft/NoMoreWalls/refs/heads/master/list.meta.yml",        
+    "https://github.com/peasoft/NoMoreWalls/blob/master/list.meta.yml",        
 ]
 
 # 测试使用
@@ -65,11 +65,6 @@ DEBUG_MODE = False  # 默认开启调试模式，方便查看处理过程
 
 # 核心程序配置
 CORE_PATH = None  # 核心程序路径，将自动检测
-
-# ========== sing-box 内核相关 ==========
-SINGBOX_PATH = r'C:/Users/Administrator/Desktop/nodespeedtest-master/xray-core/windows-64/sing-box'
-SINGBOX_DIR = os.path.dirname(SINGBOX_PATH)
-SINGBOX_EXE = SINGBOX_PATH
 
 def is_github_raw_url(url):
     """判断是否为GitHub的raw URL"""
@@ -404,62 +399,29 @@ def fetch_content(url):
         return None
 
 def parse_clash_yaml(content):
-    """解析Clash配置文件，补全所有协议字段"""
+    """解析Clash配置文件"""
     try:
         data = yaml.safe_load(content)
         if not data:
             return []
-        proxies = []
+        
+        # 直接查找proxies字段，无论它在哪个层级
         if 'proxies' in data:
-            proxies = data['proxies']
+            if DEBUG_MODE:
+                print(f"从YAML中找到 {len(data['proxies'])} 个节点")
+            return data['proxies']
+            
+        # 如果没有找到proxies字段，尝试其他可能的字段名
         for key in ['proxy-providers', 'Proxy', 'proxys']:
             if key in data and isinstance(data[key], list):
-                proxies.extend(data[key])
-        for p in proxies:
-            if 'type' not in p:
-                if 'uuid' in p:
-                    p['type'] = 'vmess'
-                elif 'password' in p and 'cipher' in p:
-                    p['type'] = 'ss'
-                elif 'password' in p:
-                    p['type'] = 'trojan'
-                else:
-                    p['type'] = 'ss'
-            if 'port' in p:
-                try:
-                    p['port'] = int(p['port'])
-                except Exception:
-                    p['port'] = 443
-            if p['type'] == 'vmess':
-                p.setdefault('uuid', p.get('id', ''))
-                p.setdefault('alterId', 0)
-                p.setdefault('cipher', 'auto')
-                p.setdefault('network', 'tcp')
-                p.setdefault('tls', False)
-                p.setdefault('path', '/')
-                p.setdefault('host', p.get('server', ''))
-            if p['type'] == 'ss':
-                p.setdefault('cipher', 'aes-256-gcm')
-                p.setdefault('password', '')
-            if p['type'] == 'trojan':
-                p.setdefault('password', '')
-                p.setdefault('sni', p.get('server', ''))
-            if p['type'] == 'hysteria':
-                p.setdefault('auth', '')
-                p.setdefault('protocol', '')
-                p.setdefault('obfs', '')
-                p.setdefault('alpn', '')
-                p.setdefault('insecure', False)
-            if p['type'] == 'reality':
-                p.setdefault('publicKey', '')
-                p.setdefault('shortId', '')
-                p.setdefault('sni', p.get('server', ''))
-                p.setdefault('fingerprint', '')
-                p.setdefault('spiderX', '')
-                p.setdefault('uuid', '')
-        return proxies
+                if DEBUG_MODE:
+                    print(f"从YAML的{key}字段中找到 {len(data[key])} 个节点")
+                return data[key]
+                
+        print("YAML中未找到节点信息")
+        return []
     except Exception as e:
-        print(f"解析Clash YAML失败: {str(e)}")
+        # print(f"解析Clash YAML失败: {str(e)}")
         return []
 
 def parse_v2ray_base64(content):
@@ -496,16 +458,15 @@ def parse_v2ray_base64(content):
         return []
 
 def parse_v2ray_uri(uri):
-    """解析V2Ray URI格式的配置，兼容标准、非标准、明文参数型vmess等格式，支持hysteria、reality"""
+    """解析V2Ray URI格式的配置"""
     try:
         # 处理vmess协议
         if uri.startswith('vmess://'):
             b64_config = uri.replace('vmess://', '')
-            # 1. 标准base64-json格式
+            # 确保base64正确填充
+            b64_config = b64_config + '=' * (-len(b64_config) % 4)
             try:
-                b64_config_padded = b64_config + '=' * (-len(b64_config) % 4)
-                decoded = base64.b64decode(b64_config_padded).decode()
-                config = json.loads(decoded)
+                config = json.loads(base64.b64decode(b64_config).decode())
                 return {
                     'type': 'vmess',
                     'name': config.get('ps', 'Unknown'),
@@ -514,71 +475,14 @@ def parse_v2ray_uri(uri):
                     'uuid': config.get('id', ''),
                     'alterId': int(config.get('aid', 0)),
                     'cipher': config.get('type', 'auto'),
-                    'tls': config.get('tls', '') == 'tls',
-                    'network': config.get('net', 'tcp'),
-                    'path': config.get('path', '/'),
-                    'host': config.get('host', '')
-                }
-            except Exception:
-                pass
-            # 2. 明文json格式
-            try:
-                config = json.loads(b64_config)
-                return {
-                    'type': 'vmess',
-                    'name': config.get('ps', 'Unknown'),
-                    'server': config.get('add', ''),
-                    'port': int(config.get('port', 0)),
-                    'uuid': config.get('id', ''),
-                    'alterId': int(config.get('aid', 0)),
-                    'cipher': config.get('type', 'auto'),
-                    'tls': config.get('tls', '') == 'tls',
-                    'network': config.get('net', 'tcp'),
-                    'path': config.get('path', '/'),
-                    'host': config.get('host', '')
-                }
-            except Exception:
-                pass
-            # 3. 明文参数型vmess://user:uuid@host:port?...参数
-            try:
-                # 先补全协议头，urlparse才能正确解析
-                if not b64_config.startswith('//'):
-                    uri_full = 'vmess://' + b64_config
-                else:
-                    uri_full = uri
-                parsed = urlparse(uri_full)
-                query = parse_qs(parsed.query)
-                # user:uuid@host:port
-                user = parsed.username or ''
-                uuid = parsed.password or user or ''
-                server = parsed.hostname or ''
-                port = parsed.port or 443
-                alterId = int(query.get('alterId', [0])[0])
-                network = query.get('type', ['tcp'])[0]
-                cipher = query.get('security', ['auto'])[0]
-                tls = query.get('tls', [''])[0] == 'tls'
-                path = query.get('path', ['/'])[0]
-                host = query.get('host', [server])[0]
-                obfs = query.get('obfs', [''])[0]
-                remarks = query.get('remarks', ['Unknown'])[0]
-                # 兼容部分机场用tfo=1等参数
-                return {
-                    'type': 'vmess',
-                    'name': remarks,
-                    'server': server,
-                    'port': int(port),
-                    'uuid': uuid,
-                    'alterId': alterId,
-                    'cipher': cipher,
-                    'tls': tls,
-                    'network': network,
-                    'path': path,
-                    'host': host,
-                    'obfs': obfs
-                }
-            except Exception:
+                        'tls': config.get('tls', '') == 'tls',
+                        'network': config.get('net', 'tcp')
+                    }
+            except json.JSONDecodeError:
+                # 某些情况下vmess可能使用非标准格式
                 print(f"Non-standard vmess format: {uri}")
                 return None
+                
         # 处理trojan协议
         elif uri.startswith('trojan://'):
             parsed = urlparse(uri)
@@ -588,9 +492,9 @@ def parse_v2ray_uri(uri):
                 'name': query.get('sni', [query.get('peer', ['Unknown'])[0]])[0],
                 'server': parsed.hostname or '',
                 'port': parsed.port or 443,
-                'password': parsed.username or '',
-                'sni': query.get('sni', [''])[0]
+                'password': parsed.username or ''
             }
+            
         # 处理vless协议
         elif uri.startswith('vless://'):
             parsed = urlparse(uri)
@@ -605,52 +509,68 @@ def parse_v2ray_uri(uri):
                 'flow': query.get('flow', [''])[0],
                 'network': query.get('type', ['tcp'])[0]
             }
+            
         # 处理shadowsocks协议
         elif uri.startswith('ss://'):
+            # 首先获取#后面的名称部分（如果存在）
             name = 'Unknown'
             if '#' in uri:
                 name_part = uri.split('#', 1)[1]
                 name = unquote(name_part)
-                uri = uri.split('#', 1)[0]
+                uri = uri.split('#', 1)[0]  # 移除名称部分以便后续处理
+            
             if '@' in uri:
+                # 处理 ss://method:password@host:port
                 parsed = urlparse(uri)
-                server = parsed.hostname or ''
-                port = parsed.port or 443
+                server = parsed.hostname
+                port = parsed.port
+                
+                # 提取方法和密码
                 userinfo = parsed.username
                 if userinfo:
                     try:
+                        # 有些实现可能会对userinfo进行base64编码
                         decoded = base64.b64decode(userinfo + '=' * (-len(userinfo) % 4)).decode()
                         if ':' in decoded:
                             method, password = decoded.split(':', 1)
                         else:
                             method, password = 'aes-256-gcm', userinfo
                     except:
+                        # 如果不是base64编码，可能是明文
                         if ':' in userinfo:
                             method, password = userinfo.split(':', 1)
                         else:
                             method, password = 'aes-256-gcm', userinfo
                 else:
                     method, password = 'aes-256-gcm', ''
+                
+                # 如果查询参数中包含remarks，优先使用它
                 query = parse_qs(parsed.query)
                 if 'remarks' in query:
                     name = query.get('remarks', ['Unknown'])[0]
+                
                 return {
                     'type': 'ss',
                     'name': name,
-                    'server': server,
-                    'port': port,
+                    'server': server or '',
+                    'port': port or 443,
                     'cipher': method,
                     'password': password
                 }
             else:
+                # 处理 ss://BASE64(method:password@host:port)
                 b64_config = uri.replace('ss://', '')
                 try:
+                    # 确保base64正确填充
                     b64_config = b64_config + '=' * (-len(b64_config) % 4)
+                    
                     config_str = base64.b64decode(b64_config).decode()
+                    # 提取方法和密码
                     if '@' in config_str:
                         method_pwd, server_port = config_str.rsplit('@', 1)
                         method, password = method_pwd.split(':', 1)
                         server, port = server_port.rsplit(':', 1)
+                        
                         return {
                             'type': 'ss',
                             'name': name,
@@ -660,13 +580,18 @@ def parse_v2ray_uri(uri):
                             'password': password
                         }
                 except Exception as e:
+                    # print(f"Invalid ss URI format: {uri}, error: {str(e)}")
                     return None
+
         # 处理shadowsocksr协议
         elif uri.startswith('ssr://'):
             b64_config = uri.replace('ssr://', '')
             try:
+                # 确保base64正确填充
                 b64_config = b64_config + '=' * (-len(b64_config) % 4)
                 config_str = base64.b64decode(b64_config).decode()
+                
+                # SSR格式: server:port:protocol:method:obfs:base64pass/?obfsparam=base64param&protoparam=base64param&remarks=base64remarks
                 parts = config_str.split(':')
                 if len(parts) >= 6:
                     server = parts[0]
@@ -674,9 +599,13 @@ def parse_v2ray_uri(uri):
                     protocol = parts[2]
                     method = parts[3]
                     obfs = parts[4]
+                    
+                    # 处理剩余参数
                     password_and_params = parts[5].split('/?', 1)
                     password_b64 = password_and_params[0]
                     password = base64.b64decode(password_b64 + '=' * (-len(password_b64) % 4)).decode()
+                    
+                    # 提取参数
                     name = 'Unknown'
                     if len(password_and_params) > 1 and 'remarks=' in password_and_params[1]:
                         remarks_b64 = password_and_params[1].split('remarks=', 1)[1].split('&', 1)[0]
@@ -684,6 +613,7 @@ def parse_v2ray_uri(uri):
                             name = base64.b64decode(remarks_b64 + '=' * (-len(remarks_b64) % 4)).decode()
                         except:
                             pass
+                    
                     return {
                         'type': 'ssr',
                         'name': name,
@@ -695,38 +625,9 @@ def parse_v2ray_uri(uri):
                         'password': password
                     }
             except Exception as e:
+                # print(f"Error parsing SSR URI: {str(e)}")
                 return None
-        # 处理hysteria协议
-        elif uri.startswith('hysteria://'):
-            parsed = urlparse(uri)
-            query = parse_qs(parsed.query)
-            return {
-                'type': 'hysteria',
-                'name': query.get('peer', ['Unknown'])[0],
-                'server': parsed.hostname or '',
-                'port': parsed.port or 443,
-                'protocol': query.get('protocol', [''])[0],
-                'auth': parsed.username or query.get('auth', [''])[0],
-                'obfs': query.get('obfs', [''])[0],
-                'alpn': query.get('alpn', [''])[0],
-                'insecure': query.get('insecure', ['false'])[0] == 'true'
-            }
-        # 处理reality协议
-        elif uri.startswith('reality://'):
-            parsed = urlparse(uri)
-            query = parse_qs(parsed.query)
-            return {
-                'type': 'reality',
-                'name': query.get('remarks', ['Unknown'])[0],
-                'server': parsed.hostname or '',
-                'port': parsed.port or 443,
-                'publicKey': query.get('publicKey', [''])[0],
-                'shortId': query.get('shortId', [''])[0],
-                'sni': query.get('sni', [''])[0],
-                'fingerprint': query.get('fp', [''])[0],
-                'spiderX': query.get('spiderX', [''])[0],
-                'uuid': parsed.username or ''
-            }
+                
         # 处理HTTP/HTTPS协议
         elif uri.startswith(('http://', 'https://')):
             parsed = urlparse(uri)
@@ -753,6 +654,19 @@ def parse_v2ray_uri(uri):
                 'password': parsed.password or ''
             }
             
+        # 处理hysteria协议
+        elif uri.startswith('hysteria://'):
+            parsed = urlparse(uri)
+            query = parse_qs(parsed.query)
+            return {
+                'type': 'hysteria',
+                'name': query.get('peer', ['Unknown'])[0],
+                'server': parsed.hostname or '',
+                'port': parsed.port or 443,
+                'protocol': query.get('protocol', [''])[0],
+                'auth': parsed.username or query.get('auth', [''])[0]
+            }
+            
         # 处理wireguard协议
         elif uri.startswith('wireguard://'):
             parsed = urlparse(uri)
@@ -772,21 +686,30 @@ def parse_v2ray_uri(uri):
         return None
 
 def extract_nodes(content):
-    """级联提取节点，按照Base64 -> 明文vmess/json -> YAML -> 正则表达式 -> JSON的顺序尝试"""
+    """级联提取节点，按照Base64 -> YAML -> 正则表达式 -> JSON的顺序尝试"""
     if not content:
         return []
+    
     nodes = []
     methods_tried = []
+    
     # 1. 尝试Base64解码提取
     try:
+        # 处理多行base64，移除所有空白字符和特殊字符
         cleaned_content = re.sub(r'[\s\n\r\t]+', '', content)
         cleaned_content = re.sub(r'[^A-Za-z0-9+/=]', '', cleaned_content)
+        
+        # 确保base64字符串长度是4的倍数
         padding_length = len(cleaned_content) % 4
         if padding_length:
             cleaned_content += '=' * (4 - padding_length)
+        
+        # 尝试base64解码
         try:
             decoded_bytes = base64.b64decode(cleaned_content)
             decoded_str = decoded_bytes.decode('utf-8', 'ignore')
+            
+            # 检查解码后的内容是否包含任何支持的协议节点
             if any(protocol in decoded_str for protocol in SUPPORTED_PROTOCOLS):
                 print("使用Base64解码提取节点")
                 methods_tried.append("Base64")
@@ -796,48 +719,18 @@ def extract_nodes(content):
                         node = parse_v2ray_uri(line)
                         if node:
                             nodes.append(node)
-        except Exception:
+        except Exception as e:
+            # print(f"Base64解码失败或未找到节点: {str(e)}")
             pass
     except Exception as e:
         print(f"Base64预处理失败: {str(e)}")
+    
+    # 如果已经提取到节点，直接返回
     if len(nodes) > 0:
         print(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
         return nodes
-    # 2. 尝试明文vmess/json
-    try:
-        lines = content.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith('vmess://'):
-                node = parse_v2ray_uri(line)
-                if node:
-                    nodes.append(node)
-            elif line.startswith('{') and 'add' in line and 'id' in line:
-                # 可能是明文json
-                try:
-                    config = json.loads(line)
-                    node = {
-                        'type': 'vmess',
-                        'name': config.get('ps', 'Unknown'),
-                        'server': config.get('add', ''),
-                        'port': int(config.get('port', 0)),
-                        'uuid': config.get('id', ''),
-                        'alterId': int(config.get('aid', 0)),
-                        'cipher': config.get('type', 'auto'),
-                        'tls': config.get('tls', '') == 'tls',
-                        'network': config.get('net', 'tcp'),
-                        'path': config.get('path', '/'),
-                        'host': config.get('host', '')
-                    }
-                    nodes.append(node)
-                except Exception:
-                    continue
-        if len(nodes) > 0:
-            print(f"通过【明文vmess/json】方法成功提取到{len(nodes)}个节点")
-            return nodes
-    except Exception as e:
-        print(f"明文vmess/json解析失败: {str(e)}")
-    # 3. 尝试解析YAML格式
+    
+    # 2. 尝试解析YAML格式
     try:
         # 移除HTML标签和特殊标记
         cleaned_content = re.sub(r'<[^>]+>|!&lt;str&gt;', '', content)
@@ -882,7 +775,7 @@ def extract_nodes(content):
         print(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
         return nodes
     
-    # 4. 尝试使用正则表达式直接提取
+    # 3. 尝试使用正则表达式直接提取
     try:
         # print("尝试使用正则表达式直接提取节点")
         methods_tried.append("正则表达式")
@@ -911,7 +804,7 @@ def extract_nodes(content):
         print(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
         return nodes
     
-    # 5. 尝试解析JSON格式
+    # 4. 尝试解析JSON格式
     try:
         # print("尝试解析JSON格式")
         methods_tried.append("JSON")
@@ -1083,71 +976,152 @@ def parse_single_json_node(item):
     return None
 
 def download_xray_core():
-    """下载Xray核心程序到当前目录 (自动适配平台)"""
+    """下载Xray核心程序到当前目录"""
     print("正在自动下载Xray核心程序...")
+    
+    # 检测操作系统类型
     is_windows = platform.system() == "Windows"
     is_64bit = platform.architecture()[0] == '64bit'
+    
+    # 获取最新版本的Xray发布信息
     try:
         api_url = "https://api.github.com/repos/XTLS/Xray-core/releases/latest"
         response = requests.get(api_url, timeout=30)
         release_info = response.json()
+        
+        # 确定下载文件名
         if is_windows:
-            file_keyword = "windows-64" if is_64bit else "windows-32"
-        else:
-            file_keyword = "linux-64" if is_64bit else "linux-32"
+            if is_64bit:
+                file_keyword = "windows-64"
+            else:
+                file_keyword = "windows-32"
+        else:  # Linux
+            if is_64bit:
+                file_keyword = "linux-64"
+            else:
+                file_keyword = "linux-32"
+        
+        # 查找匹配的下载URL
         download_url = None
         for asset in release_info['assets']:
             if file_keyword in asset['name'].lower() and asset['name'].endswith('.zip'):
                 download_url = asset['browser_download_url']
                 break
+        
         if not download_url:
             print(f"未找到适合当前平台({file_keyword})的Xray下载链接")
             return False
-        print(f"下载Xray: {download_url}")
-        download_response = requests.get(download_url, timeout=120)
+        
+        # 下载Xray
+        print(f"下载Xray: https://ghproxy.net/{download_url}")
+        download_response = requests.get(f"https://ghproxy.net/{download_url}", timeout=120)
         download_response.raise_for_status()
+        
+        # 创建目录结构
         xray_dir = "./xray-core"
-        platform_dir = os.path.join(xray_dir, file_keyword)
+        platform_dir = os.path.join(xray_dir, "windows-64" if is_windows else "linux-64")
         os.makedirs(platform_dir, exist_ok=True)
+        
+        # 解压缩文件
         with zipfile.ZipFile(io.BytesIO(download_response.content)) as z:
             z.extractall(platform_dir)
-        # 自动查找解压目录下的 xray 可执行文件
-        exe_name = "xray.exe" if is_windows else "xray"
-        for root, dirs, files in os.walk(platform_dir):
-            for file in files:
-                if file == exe_name:
-                    full_path = os.path.join(root, file)
-                    if not is_windows:
-                        os.chmod(full_path, 0o755)
-                    print(f"Xray核心程序已下载并解压到 {full_path}")
-                    return True
-        print("[ERROR] Xray 解压后未检测到主程序")
-        return False
+        
+        # 设置执行权限（Linux）
+        if not is_windows:
+            xray_path = os.path.join(platform_dir, "xray")
+            if os.path.exists(xray_path):
+                os.chmod(xray_path, 0o755)
+        
+        print(f"Xray核心程序已下载并解压到 {platform_dir}")
+        return True
+    
     except Exception as e:
         print(f"下载Xray失败: {str(e)}")
         return False
 
 def find_core_program():
-    """查找Xray核心程序 (自动适配平台)"""
+    """查找V2Ray/Xray核心程序，如果没有找到则自动下载Xray"""
     global CORE_PATH
+    
+    # 检测操作系统类型
     is_windows = platform.system() == "Windows"
-    is_64bit = platform.architecture()[0] == '64bit'
+    
+    # V2Ray可执行文件名
+    v2ray_exe = "v2ray.exe" if is_windows else "v2ray"
+    xray_exe = "xray.exe" if is_windows else "xray"
+    
+    # 首先检查xray-core目录
     xray_core_dir = "./xray-core"
-    file_keyword = "windows-64" if is_windows and is_64bit else ("windows-32" if is_windows else ("linux-64" if is_64bit else "linux-32"))
-    exe_name = "xray.exe" if is_windows else "xray"
-    xray_platform_path = os.path.join(xray_core_dir, file_keyword, exe_name)
+    platform_dir = "windows-64" if is_windows else "linux-64"
+    xray_platform_path = os.path.join(xray_core_dir, platform_dir, xray_exe)
+    
+    # 检查Xray是否存在
     if os.path.isfile(xray_platform_path) and os.access(xray_platform_path, os.X_OK if not is_windows else os.F_OK):
         CORE_PATH = xray_platform_path
         print(f"找到Xray核心程序: {CORE_PATH}")
         return CORE_PATH
+    
+    # 然后检查v2ray-core目录
+    v2ray_core_dir = "./v2ray-core"
+    v2ray_platform_path = os.path.join(v2ray_core_dir, platform_dir, v2ray_exe)
+    
+    # 检查V2Ray是否存在
+    if os.path.isfile(v2ray_platform_path) and os.access(v2ray_platform_path, os.X_OK if not is_windows else os.F_OK):
+        CORE_PATH = v2ray_platform_path
+        print(f"找到V2Ray核心程序: {CORE_PATH}")
+        return CORE_PATH
+    
+    # 搜索路径
+    search_paths = [
+        ".",  # 当前目录
+        "./v2ray",  # v2ray子目录
+        "./xray",   # xray子目录
+        os.path.expanduser("~"),  # 用户主目录
+    ]
+    
+    # Windows特定搜索路径
+    if is_windows:
+        search_paths.extend([
+            "C:\\Program Files\\v2ray",
+            "C:\\Program Files (x86)\\v2ray",
+            "C:\\v2ray",
+        ])
+    # Linux特定搜索路径
+    else:
+        search_paths.extend([
+            "/usr/bin",
+            "/usr/local/bin",
+            "/opt/v2ray",
+            "/opt/xray",
+        ])
+    
+    # 搜索V2Ray或XRay可执行文件
+    for path in search_paths:
+        v2ray_path = os.path.join(path, v2ray_exe)
+        xray_path = os.path.join(path, xray_exe)
+        
+        if os.path.isfile(v2ray_path) and os.access(v2ray_path, os.X_OK if not is_windows else os.F_OK):
+            CORE_PATH = v2ray_path
+            print(f"找到V2Ray核心程序: {CORE_PATH}")
+            return CORE_PATH
+            
+        if os.path.isfile(xray_path) and os.access(xray_path, os.X_OK if not is_windows else os.F_OK):
+            CORE_PATH = xray_path
+            print(f"找到XRay核心程序: {CORE_PATH}")
+            return CORE_PATH
+    
+    # 如果未找到核心程序，自动下载Xray
     print("未找到V2Ray或Xray核心程序，准备自动下载...")
     if download_xray_core():
+        # 重新检查Xray是否已下载
         if os.path.isfile(xray_platform_path) and os.access(xray_platform_path, os.X_OK if not is_windows else os.F_OK):
             CORE_PATH = xray_platform_path
             print(f"已成功下载并使用Xray核心程序: {CORE_PATH}")
             return CORE_PATH
+    
+    # 如果仍未找到，提示用户手动下载
     print("自动下载失败。请访问 https://github.com/XTLS/Xray-core/releases 手动下载并安装")
-    print(f"将Xray核心程序放在 {os.path.join(xray_core_dir, file_keyword)} 目录中")
+    print("将Xray核心程序放在当前目录或指定系统路径中")
     return None
 
 def find_available_port(start_port=10000, end_port=60000):
@@ -1164,7 +1138,7 @@ def find_available_port(start_port=10000, end_port=60000):
             continue
 
 def generate_v2ray_config(node, local_port):
-    """根据节点信息生成V2Ray配置文件，支持hysteria、reality"""
+    """根据节点信息生成V2Ray配置文件，采用与V2RayN相同的配置方式"""
     config = {
         "inbounds": [
             {
@@ -1172,8 +1146,8 @@ def generate_v2ray_config(node, local_port):
                 "listen": "127.0.0.1",
                 "protocol": "socks",
                 "settings": {
-                    "auth": "noauth",
-                    "udp": True
+                    "auth": "noauth",  # 不需要认证
+                    "udp": True  # 支持UDP
                 },
                 "sniffing": {
                     "enabled": True,
@@ -1181,11 +1155,15 @@ def generate_v2ray_config(node, local_port):
                 }
             }
         ],
-        "outbounds": [],
+        "outbounds": [
+            # 出站连接将根据节点类型生成
+        ],
         "log": {
-            "loglevel": "none"
+            "loglevel": "none"  # 禁止日志输出，减少干扰
         }
     }
+    
+    # 根据节点类型配置出站连接，参考V2RayN的配置方式
     if node['type'] == 'vmess':
         # 基本VMess配置
         outbound = {
@@ -1350,62 +1328,6 @@ def generate_v2ray_config(node, local_port):
                 ]
             }
         }]
-    elif node['type'] == 'ssr':
-        # SSR暂不直接支持Xray，跳过
-        return None
-    elif node['type'] == 'hysteria':
-        config["outbounds"] = [{
-            "protocol": "hysteria",
-            "settings": {
-                "servers": [
-                    {
-                        "address": node['server'],
-                        "port": node['port'],
-                        "auth": node.get('auth', ''),
-                        "protocol": node.get('protocol', ''),
-                        "obfs": node.get('obfs', ''),
-                        "alpn": node.get('alpn', ''),
-                        "insecure": node.get('insecure', False)
-                    }
-                ]
-            }
-        }]
-    elif node['type'] == 'reality':
-        config["outbounds"] = [{
-            "protocol": "vless",
-            "settings": {
-                "vnext": [
-                    {
-                        "address": node['server'],
-                        "port": node['port'],
-                        "users": [
-                            {
-                                "id": node.get('uuid', ''),
-                                "encryption": "none",
-                                "flow": "",
-                                "publicKey": node.get('publicKey', ''),
-                                "shortId": node.get('shortId', ''),
-                                "sni": node.get('sni', ''),
-                                "fingerprint": node.get('fingerprint', ''),
-                                "spiderX": node.get('spiderX', '')
-                            }
-                        ]
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": "tcp",
-                "security": "reality",
-                "realitySettings": {
-                    "show": False,
-                    "publicKey": node.get('publicKey', ''),
-                    "shortId": node.get('shortId', ''),
-                    "serverName": node.get('sni', ''),
-                    "fingerprint": node.get('fingerprint', ''),
-                    "spiderX": node.get('spiderX', '')
-                }
-            }
-        }]
     elif node['type'] == 'socks':
         # SOCKS配置
         outbound = {
@@ -1455,9 +1377,11 @@ def generate_v2ray_config(node, local_port):
             
         config["outbounds"] = [outbound]
     else:
+        # 对于不完全支持的协议，使用简单配置
         if DEBUG_MODE:
             print(f"警告: 节点类型 {node['type']} 可能不被完全支持，使用基本配置")
         return None
+
     return config
 
 def test_node_latency(node):
@@ -1681,215 +1605,15 @@ def node_to_v2ray_uri(node):
         return f"wireguard://{node['server']}:{node['port']}?{query_string}&remarks={node['name']}"
     return None
 
-def get_latest_singbox_download_url():
-    """自动获取 sing-box 最新稳定版 linux-amd64 下载链接"""
-    api_url = "https://api.github.com/repos/SagerNet/sing-box/releases"
-    try:
-        resp = requests.get(api_url, timeout=30)
-        releases = resp.json()
-        for rel in releases:
-            if not rel.get("prerelease", False):
-                for asset in rel.get("assets", []):
-                    if "linux-amd64.zip" in asset["name"]:
-                        print(f"[sing-box] 最新稳定版: {rel['tag_name']}，下载链接: {asset['browser_download_url']}")
-                        return asset["browser_download_url"]
-        print("[ERROR] 未找到 sing-box 最新稳定版 linux-amd64 下载链接")
-        return None
-    except Exception as e:
-        print(f"[ERROR] 获取 sing-box 版本信息失败: {e}")
-        return None
-
-def download_singbox_core():
-    """跳过自动下载，直接使用本地sing-box内核"""
-    if os.path.exists(SINGBOX_EXE):
-        print(f"[sing-box] 已检测到本地内核: {SINGBOX_EXE}")
-        return True
-    print("[ERROR] 未找到本地 sing-box 内核，请检查路径是否正确")
-    return False
-
-def find_singbox_core():
-    """直接检测本地sing-box内核路径"""
-    global SINGBOX_PATH
-    if os.path.exists(SINGBOX_EXE):
-        SINGBOX_PATH = SINGBOX_EXE
-        print(f"[sing-box] 使用本地内核: {SINGBOX_PATH}")
-        return SINGBOX_PATH
-    print("[ERROR] 未找到本地 sing-box 内核，请检查路径是否正确")
-    return None
-
-def generate_singbox_config(node, local_port):
-    """根据节点信息生成 sing-box 配置文件（仅支持常见协议）"""
-    # 这里只实现 vmess、ss、trojan、vless、hysteria、reality、socks
-    out = None
-    if node['type'] == 'vmess':
-        out = {
-            "type": "vmess",
-            "tag": "proxy",
-            "server": node['server'],
-            "server_port": node['port'],
-            "uuid": node['uuid'],
-            "alter_id": node.get('alterId', 0),
-            "security": node.get('cipher', 'auto'),
-            "network": node.get('network', 'tcp'),
-            "tls": node.get('tls', False),
-            "ws_opts": {"path": node.get('path', '/')},
-            "host": node.get('host', node['server'])
-        }
-    elif node['type'] == 'ss':
-        out = {
-            "type": "shadowsocks",
-            "tag": "proxy",
-            "server": node['server'],
-            "server_port": node['port'],
-            "method": node['cipher'],
-            "password": node['password']
-        }
-    elif node['type'] == 'trojan':
-        out = {
-            "type": "trojan",
-            "tag": "proxy",
-            "server": node['server'],
-            "server_port": node['port'],
-            "password": node['password'],
-            "sni": node.get('sni', node['server'])
-        }
-    elif node['type'] == 'vless':
-        out = {
-            "type": "vless",
-            "tag": "proxy",
-            "server": node['server'],
-            "server_port": node['port'],
-            "uuid": node['uuid'],
-            "encryption": "none",
-            "flow": node.get('flow', ''),
-            "network": node.get('network', 'tcp'),
-            "tls": node.get('tls', False)
-        }
-    elif node['type'] == 'hysteria':
-        out = {
-            "type": "hysteria",
-            "tag": "proxy",
-            "server": node['server'],
-            "server_port": node['port'],
-            "auth_str": node.get('auth', ''),
-            "protocol": node.get('protocol', ''),
-            "obfs": node.get('obfs', ''),
-            "alpn": node.get('alpn', ''),
-            "insecure": node.get('insecure', False)
-        }
-    elif node['type'] == 'reality':
-        out = {
-            "type": "vless",
-            "tag": "proxy",
-            "server": node['server'],
-            "server_port": node['port'],
-            "uuid": node.get('uuid', ''),
-            "encryption": "none",
-            "flow": "",
-            "tls": True,
-            "reality_opts": {
-                "public_key": node.get('publicKey', ''),
-                "short_id": node.get('shortId', ''),
-                "server_name": node.get('sni', node['server'])
-            }
-        }
-    elif node['type'] == 'socks':
-        out = {
-            "type": "socks5",
-            "tag": "proxy",
-            "server": node['server'],
-            "server_port": node['port']
-        }
-    if not out:
-        return None
-    config = {
-        "log": {"level": "error"},
-        "inbounds": [
-            {
-                "type": "socks",
-                "tag": "socks-in",
-                "listen": "127.0.0.1",
-                "listen_port": local_port
-            }
-        ],
-        "outbounds": [out]
-    }
-    return config
-
-def test_node_latency_singbox(node):
-    """用 sing-box 测速，返回延迟ms，失败返回-1"""
-    if not SINGBOX_PATH:
-        print("[sing-box] 未找到内核，跳过测速")
-        return -1
-    temp_dir = tempfile.mkdtemp(prefix="singbox_test_")
-    config_file = os.path.join(temp_dir, "config.json")
-    local_port = find_available_port()
-    config = generate_singbox_config(node, local_port)
-    if not config:
-        shutil.rmtree(temp_dir)
-        return -1
-    with open(config_file, 'w', encoding='utf-8') as f:
-        json.dump(config, f)
-    core_process = None
-    try:
-        proxies = {
-            'http': f'socks5://127.0.0.1:{local_port}',
-            'https': f'socks5://127.0.0.1:{local_port}'
-        }
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2'
-        }
-        startupinfo = None
-        if platform.system() == "Windows":
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-        core_process = subprocess.Popen(
-            [SINGBOX_PATH, "run", "-c", config_file],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            startupinfo=startupinfo
-        )
-        time.sleep(3)
-        start_time = time.time()
-        for test_url in TEST_URLS:
-            try:
-                response = requests.get(
-                    test_url,
-                    proxies=proxies,
-                    headers=headers,
-                    timeout=CONNECTION_TIMEOUT
-                )
-                if response.status_code in [200, 204]:
-                    latency = int((time.time() - start_time) * 1000)
-                    return latency
-            except Exception:
-                continue
-        return -1
-    except Exception as e:
-        print(f"[sing-box] 测速异常: {e}")
-        return -1
-    finally:
-        if core_process:
-            core_process.terminate()
-            try:
-                core_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                core_process.kill()
-        try:
-            shutil.rmtree(temp_dir)
-        except:
-            pass
-
 def main():
     global CORE_PATH
-    # 查找Xray核心
+    
+    # 查找核心程序
     CORE_PATH = find_core_program()
-    # 查找sing-box核心
-    find_singbox_core()
+    
     all_nodes = []
+    
+    # 获取并解析所有订阅
     print("\n开始获取节点信息...")
     for link in links:
         print(f"\n正在处理订阅链接: {link}")
@@ -1897,71 +1621,55 @@ def main():
         if not content:
             print("获取失败，跳过该链接")
             continue
+            
+        # 使用新的级联提取函数
         nodes = extract_nodes(content)
+        # print(f"成功提取 {len(nodes)} 个节点")
         all_nodes.extend(nodes)
+    
+    # 节点去重
     print(f"去重前节点数量: {len(all_nodes)}")
     all_nodes = remove_duplicates(all_nodes)
     print(f"去重后节点数量: {len(all_nodes)}")
-    # 保存去重后的所有节点到all.txt（仿照v2ray.txt写法）
-    all_uris = []
-    for node in all_nodes:
-        uri = node_to_v2ray_uri(node)
-        if uri:
-            all_uris.append(uri)
-    all_txt_path = os.path.join(os.getcwd(), "all.txt")
-    try:
-        all_content = '\n'.join(all_uris)
-        with open(all_txt_path, "w", encoding="utf-8") as f:
-            f.write(all_content)
-        # 立即读取确认写入
-        with open(all_txt_path, "r", encoding="utf-8") as f:
-            check_content = f.read()
-        if check_content.strip() == all_content.strip():
-            print(f"已将 {len(all_uris)} 个去重节点保存到 all.txt 文件: {all_txt_path}")
-        else:
-            print(f"[ERROR] all.txt 写入后内容校验失败，请检查写入权限或路径。")
-    except Exception as e:
-        print(f"[ERROR] 写入all.txt失败: {e}")
-    # Xray测速
-    print(f"\n开始Xray测速...")
+    
+
+    # 暂时只测试获取节点信息
+    # return
+    
+    # 使用线程池并发测试节点延迟
+    print(f"\n开始测试节点延迟...")
     valid_nodes = []
-    failed_nodes = []
+    # 限制并发数量，避免资源耗尽
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TESTS) as executor:
         future_to_node = {executor.submit(process_node, node): node for node in all_nodes}
         for future in as_completed(future_to_node):
             processed_node = future.result()
             if processed_node:
                 valid_nodes.append(processed_node)
-            else:
-                failed_nodes.append(future_to_node[future])
-    print(f"Xray测速完成，有效节点数量: {len(valid_nodes)}，失败节点: {len(failed_nodes)}")
-    # sing-box测速补测
-    print(f"\n对Xray未通过的节点用sing-box补测...")
-    valid_nodes_singbox = []
-    with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TESTS) as executor:
-        future_to_node = {executor.submit(lambda n: (n if test_node_latency_singbox(n) > 0 else None), node): node for node in failed_nodes}
-        for future in as_completed(future_to_node):
-            processed_node = future.result()
-            if processed_node:
-                valid_nodes_singbox.append(processed_node)
-    print(f"sing-box补测完成，有效节点数量: {len(valid_nodes_singbox)}")
-    # 合并所有可用节点
-    all_valid_nodes = valid_nodes + valid_nodes_singbox
-    print(f"\n最终有效节点总数: {len(all_valid_nodes)}")
+    
+    print(f"\n测试完成，有效节点数量: {len(valid_nodes)}")
+    
     # 收集所有有效节点的URI
     valid_uris = []
     valid_uri_count = 0
-    for node in all_valid_nodes:
-        uri = node_to_v2ray_uri(node)
-        if uri:
-            valid_uris.append(uri)
-            valid_uri_count += 1
+    for node in valid_nodes:
+            uri = node_to_v2ray_uri(node)
+            if uri:
+                valid_uris.append(uri)
+                valid_uri_count += 1
+    
+    # 将所有URI合并为一个字符串，并进行base64编码
     if valid_uri_count > 0:
         uri_content = '\n'.join(valid_uris)
         base64_content = base64.b64encode(uri_content.encode('utf-8')).decode('utf-8')
+        
+        # 将base64编码后的内容写入文件
         with open('v2ray.txt', 'w', encoding='utf-8') as f:
             f.write(base64_content)
+        
         print(f"\n已将 {valid_uri_count} 个有效节点以base64编码保存到 v2ray.txt 文件")
+        
+        # 同时保存一个原始文本版本，方便查看
         with open('v2ray_raw.txt', 'w', encoding='utf-8') as f:
             f.write(uri_content)
         print(f"同时保存了原始文本版本到 v2ray_raw.txt 文件")
