@@ -26,8 +26,6 @@ links = [
     "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/refs/heads/main/speednodes.txt", 
     "https://github.com/peasoft/NoMoreWalls/blob/master/list.meta.yml", 
     "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/trial.yaml",   
-    "https://raw.githubusercontent.com/qjlxg/ProxyCollector/refs/heads/master/sub/proxies.txt",   
-    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/ss.txt",   
     "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/data/520.yaml",       
 ]
 
