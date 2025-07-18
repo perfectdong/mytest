@@ -1664,14 +1664,17 @@ def node_to_v2ray_uri(node):
 def standardize_nodes(nodes):
     """
     对节点列表进行标准化处理：
-    1. 如果节点名称缺失或为Unknown，则自动补全为"美国01"、"美国02"等。
+    1. 如果节点名称缺失、为None、空字符串、空格或为Unknown，则自动补全为"美国01"、"美国02"等。
     2. 保证所有节点的name字段不为空。
+    3. 补全时输出调试信息。
     """
     country_prefix = "美国"
     count = 1
     for node in nodes:
-        if not node.get('name') or node['name'].strip() == '' or node['name'].strip().lower() == 'unknown':
+        name = node.get('name')
+        if name is None or str(name).strip() == '' or str(name).strip().lower() == 'unknown':
             node['name'] = f"{country_prefix}{count:02d}"
+            print(f"节点 {node.get('type','')} {node.get('server','')}:{node.get('port','')} 名称缺失，自动补全为: {node['name']}")
             count += 1
     return nodes
 
