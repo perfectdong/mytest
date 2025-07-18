@@ -209,7 +209,7 @@ def format_current_date(url):
                 pattern = r'\{x\}' + re.escape(file_suffix)
                 formatted_url = re.sub(pattern, filename, formatted_url)
             else:
-                print(f"警告: 未能解析{x}占位符, URL: {formatted_url}")
+                print(f"警告: 未能解析{{x}}占位符, URL: {formatted_url}")
     
     return formatted_url
 
@@ -1605,6 +1605,20 @@ def node_to_v2ray_uri(node):
         return f"wireguard://{node['server']}:{node['port']}?{query_string}&remarks={node['name']}"
     return None
 
+def standardize_nodes(nodes):
+    """
+    对节点列表进行标准化处理：
+    1. 如果节点名称缺失或为Unknown，则自动补全为"美国01"、"美国02"等。
+    2. 保证所有节点的name字段不为空。
+    """
+    country_prefix = "美国"
+    count = 1
+    for node in nodes:
+        if not node.get('name') or node['name'].strip() == '' or node['name'].strip().lower() == 'unknown':
+            node['name'] = f"{country_prefix}{count:02d}"
+            count += 1
+    return nodes
+
 def main():
     global CORE_PATH
     
@@ -1631,8 +1645,10 @@ def main():
     print(f"去重前节点数量: {len(all_nodes)}")
     all_nodes = remove_duplicates(all_nodes)
     print(f"去重后节点数量: {len(all_nodes)}")
-    
 
+    # 节点信息补全和标准化
+    all_nodes = standardize_nodes(all_nodes)
+    
     # 暂时只测试获取节点信息
     # return
     
