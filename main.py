@@ -61,7 +61,7 @@ TEST_URLS = [
 ]
 CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
 MAX_CONCURRENT_TESTS = 100  # 最大并发测试数量
-DEBUG_MODE = False  # 默认开启调试模式，方便查看处理过程
+DEBUG_MODE = True  # 默认开启调试模式，方便查看处理过程
 
 # 核心程序配置
 CORE_PATH = None  # 核心程序路径，将自动检测
@@ -976,152 +976,141 @@ def parse_single_json_node(item):
     return None
 
 def download_xray_core():
-    """下载Xray核心程序到当前目录"""
-    print("正在自动下载Xray核心程序...")
-    
-    # 检测操作系统类型
-    is_windows = platform.system() == "Windows"
-    is_64bit = platform.architecture()[0] == '64bit'
-    
-    # 获取最新版本的Xray发布信息
+    """
+    自动下载并解压适合当前操作系统的Xray核心程序。
+    支持macOS、Linux、Windows，并兼容GitHub Actions环境。
+    """
+    import sys
+    import tarfile
+    import zipfile
+    import stat
+
+    # 优先从环境变量读取（适配GitHub Actions）
+    import os
+    gh_os = os.environ.get("GITHUB_WORKFLOW_OS", "").lower()
+    if gh_os:
+        if "ubuntu" in gh_os or "linux" in gh_os:
+            system = "Linux"
+        elif "macos" in gh_os or "darwin" in gh_os:
+            system = "Darwin"
+        elif "windows" in gh_os:
+            system = "Windows"
+        else:
+            system = platform.system()
+    else:
+        system = platform.system()
+    arch = platform.machine().lower()
+    if arch in ["x86_64", "amd64"]:
+        arch = "64"
+    elif arch in ["arm64", "aarch64"]:
+        arch = "arm64"
+    else:
+        arch = "64"  # 默认
+
+    if system == "Darwin":
+        xray_dir = "xray-core/macos-64"
+        asset_name = "Xray-macos-64.zip"  # 统一用官方Intel版，Apple Silicon可Rosetta运行
+        exe_name = "xray"
+    elif system == "Linux":
+        xray_dir = "xray-core/linux-64"
+        asset_name = f"Xray-linux-{arch}.zip"
+        exe_name = "xray"
+    elif system == "Windows":
+        xray_dir = "xray-core/windows-64"
+        asset_name = f"Xray-windows-{arch}.zip"
+        exe_name = "xray.exe"
+    else:
+        print(f"不支持的系统: {system}")
+        return None
+
+    # 官方release地址
+    release_api = "https://api.github.com/repos/XTLS/Xray-core/releases/latest"
     try:
-        api_url = "https://api.github.com/repos/XTLS/Xray-core/releases/latest"
-        response = requests.get(api_url, timeout=30)
-        release_info = response.json()
-        
-        # 确定下载文件名
-        if is_windows:
-            if is_64bit:
-                file_keyword = "windows-64"
-            else:
-                file_keyword = "windows-32"
-        else:  # Linux
-            if is_64bit:
-                file_keyword = "linux-64"
-            else:
-                file_keyword = "linux-32"
-        
-        # 查找匹配的下载URL
-        download_url = None
-        for asset in release_info['assets']:
-            if file_keyword in asset['name'].lower() and asset['name'].endswith('.zip'):
-                download_url = asset['browser_download_url']
+        print(f"正在获取Xray最新版本... 目标系统: {system} 架构: {arch}")
+        resp = requests.get(release_api, timeout=30)
+        tag = resp.json()["tag_name"]
+        assets = resp.json()["assets"]
+        asset_url = None
+        for asset in assets:
+            if asset["name"] == asset_name:
+                asset_url = asset["browser_download_url"]
                 break
-        
-        if not download_url:
-            print(f"未找到适合当前平台({file_keyword})的Xray下载链接")
-            return False
-        
-        # 下载Xray
-        print(f"下载Xray: https://ghproxy.net/{download_url}")
-        download_response = requests.get(f"https://ghproxy.net/{download_url}", timeout=120)
-        download_response.raise_for_status()
-        
-        # 创建目录结构
-        xray_dir = "./xray-core"
-        platform_dir = os.path.join(xray_dir, "windows-64" if is_windows else "linux-64")
-        os.makedirs(platform_dir, exist_ok=True)
-        
-        # 解压缩文件
-        with zipfile.ZipFile(io.BytesIO(download_response.content)) as z:
-            z.extractall(platform_dir)
-        
-        # 设置执行权限（Linux）
-        if not is_windows:
-            xray_path = os.path.join(platform_dir, "xray")
-            if os.path.exists(xray_path):
-                os.chmod(xray_path, 0o755)
-        
-        print(f"Xray核心程序已下载并解压到 {platform_dir}")
-        return True
-    
+        if not asset_url:
+            print(f"未找到适合本系统的Xray核心: {asset_name}")
+            return None
+        print(f"下载Xray核心: {asset_url}")
+        r = requests.get(asset_url, stream=True, timeout=60)
+        r.raise_for_status()
+        os.makedirs(xray_dir, exist_ok=True)
+        zip_path = os.path.join(xray_dir, asset_name)
+        with open(zip_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+        # 解压
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(xray_dir)
+        os.remove(zip_path)
+        # 赋予可执行权限
+        exe_path = os.path.join(xray_dir, exe_name)
+        if system != "Windows":
+            os.chmod(exe_path, os.stat(exe_path).st_mode | stat.S_IEXEC)
+        print(f"Xray核心已下载并解压到: {exe_path}")
+        return exe_path
     except Exception as e:
-        print(f"下载Xray失败: {str(e)}")
-        return False
+        print(f"下载Xray核心失败: {e}")
+        return None
 
 def find_core_program():
-    """查找V2Ray/Xray核心程序，如果没有找到则自动下载Xray"""
+    """
+    查找或自动下载适合本系统的Xray核心程序。
+    支持GitHub Actions环境变量GITHUB_WORKFLOW_OS。
+    """
     global CORE_PATH
-    
-    # 检测操作系统类型
-    is_windows = platform.system() == "Windows"
-    
-    # V2Ray可执行文件名
-    v2ray_exe = "v2ray.exe" if is_windows else "v2ray"
-    xray_exe = "xray.exe" if is_windows else "xray"
-    
-    # 首先检查xray-core目录
-    xray_core_dir = "./xray-core"
-    platform_dir = "windows-64" if is_windows else "linux-64"
-    xray_platform_path = os.path.join(xray_core_dir, platform_dir, xray_exe)
-    
-    # 检查Xray是否存在
-    if os.path.isfile(xray_platform_path) and os.access(xray_platform_path, os.X_OK if not is_windows else os.F_OK):
-        CORE_PATH = xray_platform_path
+    import os
+    gh_os = os.environ.get("GITHUB_WORKFLOW_OS", "").lower()
+    if gh_os:
+        if "ubuntu" in gh_os or "linux" in gh_os:
+            system = "Linux"
+        elif "macos" in gh_os or "darwin" in gh_os:
+            system = "Darwin"
+        elif "windows" in gh_os:
+            system = "Windows"
+        else:
+            system = platform.system()
+    else:
+        system = platform.system()
+    arch = platform.machine().lower()
+    if arch in ["x86_64", "amd64"]:
+        arch = "64"
+    elif arch in ["arm64", "aarch64"]:
+        arch = "arm64"
+    else:
+        arch = "64"
+    if system == "Darwin":
+        xray_dir = "xray-core/macos-64"
+        exe_name = "xray"
+    elif system == "Linux":
+        xray_dir = "xray-core/linux-64"
+        exe_name = "xray"
+    elif system == "Windows":
+        xray_dir = "xray-core/windows-64"
+        exe_name = "xray.exe"
+    else:
+        print(f"不支持的系统: {system}")
+        return None
+    exe_path = os.path.join(xray_dir, exe_name)
+    if os.path.isfile(exe_path) and os.access(exe_path, os.X_OK if system != "Windows" else os.F_OK):
+        CORE_PATH = exe_path
         print(f"找到Xray核心程序: {CORE_PATH}")
         return CORE_PATH
-    
-    # 然后检查v2ray-core目录
-    v2ray_core_dir = "./v2ray-core"
-    v2ray_platform_path = os.path.join(v2ray_core_dir, platform_dir, v2ray_exe)
-    
-    # 检查V2Ray是否存在
-    if os.path.isfile(v2ray_platform_path) and os.access(v2ray_platform_path, os.X_OK if not is_windows else os.F_OK):
-        CORE_PATH = v2ray_platform_path
-        print(f"找到V2Ray核心程序: {CORE_PATH}")
+    # 没有找到则自动下载
+    print("未找到Xray核心，自动下载...")
+    exe_path = download_xray_core()
+    if exe_path and os.path.isfile(exe_path):
+        CORE_PATH = exe_path
+        print(f"自动下载并找到Xray核心: {CORE_PATH}")
         return CORE_PATH
-    
-    # 搜索路径
-    search_paths = [
-        ".",  # 当前目录
-        "./v2ray",  # v2ray子目录
-        "./xray",   # xray子目录
-        os.path.expanduser("~"),  # 用户主目录
-    ]
-    
-    # Windows特定搜索路径
-    if is_windows:
-        search_paths.extend([
-            "C:\\Program Files\\v2ray",
-            "C:\\Program Files (x86)\\v2ray",
-            "C:\\v2ray",
-        ])
-    # Linux特定搜索路径
-    else:
-        search_paths.extend([
-            "/usr/bin",
-            "/usr/local/bin",
-            "/opt/v2ray",
-            "/opt/xray",
-        ])
-    
-    # 搜索V2Ray或XRay可执行文件
-    for path in search_paths:
-        v2ray_path = os.path.join(path, v2ray_exe)
-        xray_path = os.path.join(path, xray_exe)
-        
-        if os.path.isfile(v2ray_path) and os.access(v2ray_path, os.X_OK if not is_windows else os.F_OK):
-            CORE_PATH = v2ray_path
-            print(f"找到V2Ray核心程序: {CORE_PATH}")
-            return CORE_PATH
-            
-        if os.path.isfile(xray_path) and os.access(xray_path, os.X_OK if not is_windows else os.F_OK):
-            CORE_PATH = xray_path
-            print(f"找到XRay核心程序: {CORE_PATH}")
-            return CORE_PATH
-    
-    # 如果未找到核心程序，自动下载Xray
-    print("未找到V2Ray或Xray核心程序，准备自动下载...")
-    if download_xray_core():
-        # 重新检查Xray是否已下载
-        if os.path.isfile(xray_platform_path) and os.access(xray_platform_path, os.X_OK if not is_windows else os.F_OK):
-            CORE_PATH = xray_platform_path
-            print(f"已成功下载并使用Xray核心程序: {CORE_PATH}")
-            return CORE_PATH
-    
-    # 如果仍未找到，提示用户手动下载
-    print("自动下载失败。请访问 https://github.com/XTLS/Xray-core/releases 手动下载并安装")
-    print("将Xray核心程序放在当前目录或指定系统路径中")
+    print("Xray核心获取失败！")
     return None
 
 def find_available_port(start_port=10000, end_port=60000):
@@ -1236,6 +1225,8 @@ def generate_v2ray_config(node, local_port):
                 "allowInsecure": node.get('allowInsecure', False)
             }
         
+        if DEBUG_MODE:
+            print(f"生成VMess配置: {json.dumps(outbound, ensure_ascii=False)}")
         config["outbounds"] = [outbound]
     elif node['type'] == 'trojan':
         # 增强Trojan配置
@@ -1268,6 +1259,8 @@ def generate_v2ray_config(node, local_port):
                     "Host": node.get('host', node['server'])
                 }
             }
+        if DEBUG_MODE:
+            print(f"生成Trojan配置: {json.dumps(config['outbounds'][0], ensure_ascii=False)}")
     elif node['type'] == 'vless':
         # 增强VLESS配置
         config["outbounds"] = [{
@@ -1313,6 +1306,8 @@ def generate_v2ray_config(node, local_port):
                 "serverName": node.get('sni', node.get('host', node['server'])),
                 "allowInsecure": node.get('allowInsecure', False)
             }
+        if DEBUG_MODE:
+            print(f"生成VLESS配置: {json.dumps(config['outbounds'][0], ensure_ascii=False)}")
     elif node['type'] == 'ss':
         # Shadowsocks配置
         config["outbounds"] = [{
@@ -1328,6 +1323,8 @@ def generate_v2ray_config(node, local_port):
                 ]
             }
         }]
+        if DEBUG_MODE:
+            print(f"生成Shadowsocks配置: {json.dumps(config['outbounds'][0], ensure_ascii=False)}")
     elif node['type'] == 'socks':
         # SOCKS配置
         outbound = {
@@ -1351,6 +1348,8 @@ def generate_v2ray_config(node, local_port):
                 }
             ]
             
+        if DEBUG_MODE:
+            print(f"生成SOCKS配置: {json.dumps(outbound, ensure_ascii=False)}")
         config["outbounds"] = [outbound]
     elif node['type'] in ['http', 'https']:
         # HTTP/HTTPS配置
@@ -1375,11 +1374,68 @@ def generate_v2ray_config(node, local_port):
                 }
             ]
             
-        config["outbounds"] = [outbound]
-    else:
-        # 对于不完全支持的协议，使用简单配置
         if DEBUG_MODE:
-            print(f"警告: 节点类型 {node['type']} 可能不被完全支持，使用基本配置")
+            print(f"生成HTTP/HTTPS配置: {json.dumps(outbound, ensure_ascii=False)}")
+        config["outbounds"] = [outbound]
+    elif node['type'] == 'ssr':
+        # SSR配置（Xray支持简单ssr出站）
+        config["outbounds"] = [{
+            "protocol": "shadowsocksr",
+            "settings": {
+                "servers": [
+                    {
+                        "address": node['server'],
+                        "port": node['port'],
+                        "method": node.get('cipher', 'aes-256-cfb'),
+                        "password": node['password'],
+                        "protocol": node.get('protocol', 'auth_aes128_md5'),
+                        "obfs": node.get('obfs', 'tls1.2_ticket_auth'),
+                        "remarks": node.get('name', ''),
+                    }
+                ]
+            }
+        }]
+        if DEBUG_MODE:
+            print(f"生成SSR配置: {json.dumps(config['outbounds'][0], ensure_ascii=False)}")
+    elif node['type'] == 'hysteria':
+        # Hysteria配置（Xray支持hysteria2，部分参数需适配）
+        config["outbounds"] = [{
+            "protocol": "hysteria2",
+            "settings": {
+                "servers": [
+                    {
+                        "address": node['server'],
+                        "port": node['port'],
+                        "auth": node.get('auth', ''),
+                        "protocol": node.get('protocol', 'udp'),
+                        "sni": node.get('name', ''),
+                    }
+                ]
+            }
+        }]
+        if DEBUG_MODE:
+            print(f"生成Hysteria配置: {json.dumps(config['outbounds'][0], ensure_ascii=False)}")
+    elif node['type'] == 'wireguard':
+        # WireGuard配置（Xray支持wireguard出站）
+        config["outbounds"] = [{
+            "protocol": "wireguard",
+            "settings": {
+                "secretKey": node.get('private_key', ''),
+                "address": node.get('address', ''),
+                "peers": [
+                    {
+                        "publicKey": node.get('public_key', ''),
+                        "endpoint": f"{node['server']}:{node['port']}",
+                        "allowedIPs": node.get('allowed_ips', '0.0.0.0/0'),
+                    }
+                ]
+            }
+        }]
+        if DEBUG_MODE:
+            print(f"生成WireGuard配置: {json.dumps(config['outbounds'][0], ensure_ascii=False)}")
+    else:
+        if DEBUG_MODE:
+            print(f"警告: 节点类型 {node['type']} 不被支持，跳过。节点信息: {node}")
         return None
 
     return config
@@ -1645,10 +1701,10 @@ def main():
     print(f"去重前节点数量: {len(all_nodes)}")
     all_nodes = remove_duplicates(all_nodes)
     print(f"去重后节点数量: {len(all_nodes)}")
-
+    
     # 节点信息补全和标准化
     all_nodes = standardize_nodes(all_nodes)
-    
+
     # 暂时只测试获取节点信息
     # return
     
@@ -1673,6 +1729,19 @@ def main():
             if uri:
                 valid_uris.append(uri)
                 valid_uri_count += 1
+    
+    # 新增：保存所有去重合并后的节点到all.txt（原始格式）
+    try:
+        all_uris = []
+        for node in all_nodes:
+            uri = node_to_v2ray_uri(node)
+            if uri:
+                all_uris.append(uri)
+        with open('all.txt', 'w', encoding='utf-8') as f:
+            f.write('\n'.join(all_uris))
+        print(f"\n已将所有去重合并后的节点保存到 all.txt 文件")
+    except Exception as e:
+        print(f"保存all.txt失败: {e}")
     
     # 将所有URI合并为一个字符串，并进行base64编码
     if valid_uri_count > 0:
