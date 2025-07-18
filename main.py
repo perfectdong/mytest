@@ -487,9 +487,12 @@ def parse_v2ray_uri(uri):
         elif uri.startswith('trojan://'):
             parsed = urlparse(uri)
             query = parse_qs(parsed.query)
+            name = query.get('sni', [query.get('peer', ['Unknown'])[0]])[0]
+            if name is None or str(name).strip() == '':
+                name = 'Unknown'
             return {
                 'type': 'trojan',
-                'name': query.get('sni', [query.get('peer', ['Unknown'])[0]])[0],
+                'name': name,
                 'server': parsed.hostname or '',
                 'port': parsed.port or 443,
                 'password': parsed.username or ''
