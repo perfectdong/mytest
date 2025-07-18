@@ -24,7 +24,11 @@ links = [
     "https://raw.githubusercontent.com/jgchengxin/ssr_subscrible_tool/refs/heads/master/node.txt",
     "https://raw.githubusercontent.com/dl250/dl250/refs/heads/master/node.txt", 
     "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/refs/heads/main/speednodes.txt", 
-    "https://github.com/peasoft/NoMoreWalls/blob/master/list.meta.yml",        
+    "https://github.com/peasoft/NoMoreWalls/blob/master/list.meta.yml", 
+    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/trial.yaml",   
+    "https://raw.githubusercontent.com/qjlxg/ProxyCollector/refs/heads/master/sub/proxies.txt",   
+    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/ss.txt",   
+    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/data/520.yaml",       
 ]
 
 # 测试使用
