@@ -17,6 +17,7 @@ from datetime import datetime
 from urllib.parse import urlparse, parse_qs, unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 #  https://raw.githubusercontent.com/moneyfly1/collectSub/refs/heads/main/output/all.txt
+#  https://raw.githubusercontent.com/Alvin9999/pac2/refs/heads/master/clash.meta2/15/config.yaml
 # 订阅链接列表
 links = [
     "https://raw.githubusercontent.com/gzpanda/temppp/refs/heads/main/panda.yaml", 
@@ -25,7 +26,8 @@ links = [
     "https://raw.githubusercontent.com/dl250/dl250/refs/heads/master/node.txt", 
     "https://raw.githubusercontent.com/zhangkaiitugithub/passcro/refs/heads/main/speednodes.txt", 
     "https://github.com/peasoft/NoMoreWalls/blob/master/list.meta.yml", 
-    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/trial.yaml",        
+    "https://raw.githubusercontent.com/qjlxg/aggregator/refs/heads/main/trial.yaml", 
+    "https://raw.githubusercontent.com/Alvin9999/pac2/refs/heads/master/clash.meta2/15/config.yaml",     
 ]
 
 # 测试使用
