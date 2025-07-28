@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # 订阅链接列表
 links = [
     "https://raw.githubusercontent.com/gzpanda/temppp/refs/heads/main/panda.yaml",
+    "https://raw.githubusercontent.com/qjlxg/ProxyCollector/refs/heads/master/sub/proxies.txt",    
     "https://raw.githubusercontent.com/WLget/V2Ray_configs_64/master/ConfigSub_list.txt",    
     "https://raw.githubusercontent.com/jianguogongyong/ssr_subscrible_tool/refs/heads/master/node.txt", 
     "https://raw.githubusercontent.com/jgchengxin/ssr_subscrible_tool/refs/heads/master/node.txt",
