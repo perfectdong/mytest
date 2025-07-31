@@ -18,11 +18,18 @@ from urllib.parse import urlparse, parse_qs, unquote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 #  https://raw.githubusercontent.com/moneyfly1/collectSub/refs/heads/main/output/all.txt
 #  https://raw.githubusercontent.com/Alvin9999/pac2/refs/heads/master/clash.meta2/15/config.yaml
-
+#https://raw.githubusercontent.com/maplelgj/TV/9997fd858b33405d56adb127ed686dc480c32dc4/VV
 # 订阅链接列表
 links = [
     "https://raw.githubusercontent.com/gzpanda/temppp/refs/heads/main/panda.yaml",
-    "https://raw.githubusercontent.com/qjlxg/ProxyCollector/refs/heads/master/sub/proxies.txt",    
+    "https://raw.githubusercontent.com/qjlxg/ProxyCollector/refs/heads/master/sub/proxies.txt", 
+    "https://raw.githubusercontent.com/maplelgj/TV/9997fd858b33405d56adb127ed686dc480c32dc4/VV", 
+    "https://raw.githubusercontent.com/hzrenji/hzdx/fae232f376c63c473c9c155664dac6d296967510/sudu", 
+    "https://raw.githubusercontent.com/qjlxg/ProxyCollector/refs/heads/master/sub/proxies.txt", 
+    "https://raw.githubusercontent.com/fryhbzy/myfiles/989da7513804ca1bb8f0294eb5ada717b63f23eb/sub.yaml", 
+    "https://raw.githubusercontent.com/sanyandesign/rule/4dc1252012f0c5808763b3c9708d4bdf45afe58c/config.yaml",
+    "https://raw.githubusercontent.com/gzpanda/temppp/refs/heads/main/panda.yaml", 
+    "https://raw.githubusercontent.com/hzrenji/hzdx/fae232f376c63c473c9c155664dac6d296967510/sudu",     
     "https://raw.githubusercontent.com/WLget/V2Ray_configs_64/master/ConfigSub_list.txt",    
     "https://raw.githubusercontent.com/jianguogongyong/ssr_subscrible_tool/refs/heads/master/node.txt", 
     "https://raw.githubusercontent.com/jgchengxin/ssr_subscrible_tool/refs/heads/master/node.txt",
