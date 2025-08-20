@@ -339,7 +339,8 @@ SUPPORTED_PROTOCOLS = [
 # 测速相关配置
 # 测试URL列表
 TEST_URLS = [
-    "http://www.google.com/generate_204",  # Google测试
+    #"http://www.google.com/generate_204",  # Google测试
+    "http://www.gstatic.com/generate_204",  # Google测试
 ]
 CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
 MAX_CONCURRENT_TESTS = 100  # 最大并发测试数量
