@@ -1511,7 +1511,7 @@ def test_node_latency(node):
         )
         
         # 等待核心程序启动
-        time.sleep(3)
+        time.sleep(1)
         
         # 测试连接延迟 - 不再使用重试机制
         start_time = time.time()
@@ -1521,7 +1521,7 @@ def test_node_latency(node):
             try:
                 if DEBUG_MODE:
                     print(f"测试节点: {node['name']} - 尝试URL: {test_url}")
-                time.sleep(3)
+                time.sleep(1)
                 response = requests.get(
                     test_url,
                     proxies=proxies,
@@ -1538,6 +1538,7 @@ def test_node_latency(node):
                     if DEBUG_MODE:
                         print(f"测试URL状态码错误: {response.status_code}")
             except Exception as e:
+                time.sleep(1)
                 if DEBUG_MODE:
                     print(f"测试失败: {test_url} - 错误: {str(e)}")
                 continue  # 尝试下一个URL
