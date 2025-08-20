@@ -1735,7 +1735,7 @@ def main():
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TESTS) as executor:
         future_to_node = {executor.submit(process_node, node): node for node in all_nodes}
         for future in as_completed(future_to_node):
-            time.sleep(3) 
+            time.sleep(0.5) 
             processed_node = future.result()
             if processed_node:
                 valid_nodes.append(processed_node)
