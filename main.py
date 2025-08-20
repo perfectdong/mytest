@@ -1521,7 +1521,7 @@ def test_node_latency(node):
             try:
                 if DEBUG_MODE:
                     print(f"测试节点: {node['name']} - 尝试URL: {test_url}")
-                time.sleep(1)
+                time.sleep(0.5)
                 response = requests.get(
                     test_url,
                     proxies=proxies,
@@ -1538,7 +1538,7 @@ def test_node_latency(node):
                     if DEBUG_MODE:
                         print(f"测试URL状态码错误: {response.status_code}")
             except Exception as e:
-                time.sleep(1)
+                time.sleep(0.5)
                 if DEBUG_MODE:
                     print(f"测试失败: {test_url} - 错误: {str(e)}")
                 continue  # 尝试下一个URL
@@ -1735,7 +1735,6 @@ def main():
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TESTS) as executor:
         future_to_node = {executor.submit(process_node, node): node for node in all_nodes}
         for future in as_completed(future_to_node):
-            time.sleep(0.5) 
             processed_node = future.result()
             if processed_node:
                 valid_nodes.append(processed_node)
