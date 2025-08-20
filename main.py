@@ -63,7 +63,7 @@ links = [
     "https://raw.githubusercontent.com/vpei/free-node-1/refs/heads/main/res/nod-0.txt",
     "https://raw.githubusercontent.com/mheidari98/.proxy/refs/heads/main/ss",
     "https://raw.githubusercontent.com/parkerpa/zypjj/main/clash",
-    "https://raw.githubusercontent.com/anaer/Sub/refs/heads/main/clash.yaml",http://yy.yudou66.top/202504/20250406bg4ase.txt",
+    "https://raw.githubusercontent.com/anaer/Sub/refs/heads/main/clash.yaml",
     "https://raw.githubusercontent.com/vxiaov/free_proxy_ss/main/ssr/ssrsub",
     "https://raw.githubusercontent.com/mianfengyang/cfvpn/main/cf.yaml",
     "https://raw.githubusercontent.com/hkaa0/permalink/e8f97142d083c0f5dac55af7b6531b300f273b4d/proxy/V2ray",
