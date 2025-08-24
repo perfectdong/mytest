@@ -763,7 +763,7 @@ def parse_v2ray_uri(uri):
                     }
             except json.JSONDecodeError:
                 # 某些情况下vmess可能使用非标准格式
-                print(f"Non-standard vmess format: {uri}")
+                #print(f"Non-standard vmess format: {uri}")
                 return None
                 
         # 处理trojan协议
