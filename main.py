@@ -131,7 +131,6 @@ SUPPORTED_PROTOCOLS = [
 # 测速相关配置
 # 测试URL列表
 TEST_URLS = [
-    #"http://www.google.com/generate_204",  # Google测试
     "http://www.gstatic.com/generate_204",  # Google测试
     "http://maps.googleapis.com/maps/api/mapsjs/gen_204",
     "http://www.google.com/generate_204",
@@ -142,11 +141,26 @@ TEST_URLS = [
     "https://www.facebook.com/common/referer_frame.php",
     "https://twitter.com/favicon.ico",
     "https://ssl.gstatic.com/ui/v1/icons/mail/images/cleardot.gif",
+    "http://captive.apple.com",
+    "http://www.apple.com/library/test/success.html",
+    "http://www.msftncsi.com/ncsi.txt",
+    "http://www.msftconnecttest.com/connecttest.txt",
+    "https://bat.bing.com/action/0",
+    "http://detectportal.firefox.com/success.txt",
+    "http://www.v2ex.com/generate_204",
+    "https://http.cat/204",
+    "https://httpbin.org/status/204",
+    "http://cp.cloudflare.com/",
+    "http://cp.cloudflare.com/generate_204",
+    "http://connectivitycheck.platform.hicloud.com/generate_204",
+    "http://wifi.vivo.com.cn/generate_204",
+    "http://connectivitycheck.platform.hicloud.com/generate_204",
+    "http://connect.rom.miui.com/generate_204",
     
     
 ]
-CONNECTION_TIMEOUT = 20  # 连接超时时间，单位为秒
-MAX_CONCURRENT_TESTS = 88  # 最大并发测试数量
+CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
+MAX_CONCURRENT_TESTS = 100  # 最大并发测试数量
 DEBUG_MODE = True  # 默认开启调试模式，方便查看处理过程
 
 # 核心程序配置
