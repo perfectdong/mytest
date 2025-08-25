@@ -333,8 +333,19 @@ SUPPORTED_PROTOCOLS = [
 TEST_URLS = [
     #"http://www.google.com/generate_204",  # Google测试
     "http://www.gstatic.com/generate_204",  # Google测试
+    "http://maps.googleapis.com/maps/api/mapsjs/gen_204",
+    "http://www.google.com/generate_204",
+    "http://www.google-analytics.com/generate_204",
+    "http://connectivitycheck.gstatic.com/generate_204",
+    "https://clients3.google.com/generate_204",
+    "http://www.google.com/blank.html",
+    "https://www.facebook.com/common/referer_frame.php",
+    "https://twitter.com/favicon.ico",
+    "https://ssl.gstatic.com/ui/v1/icons/mail/images/cleardot.gif",
+    
+    
 ]
-CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
+CONNECTION_TIMEOUT = 20  # 连接超时时间，单位为秒
 MAX_CONCURRENT_TESTS = 88  # 最大并发测试数量
 DEBUG_MODE = True  # 默认开启调试模式，方便查看处理过程
 
@@ -1754,31 +1765,31 @@ def test_node_latency(node):
         start_time = time.time()
         
         # 按顺序尝试不同的测试URL
-        for test_url in TEST_URLS:
-            try:
+        test_url = random.choice(TEST_URLS)
+        try:
+            if DEBUG_MODE:
+                print(f"测试节点: {node['name']} - 尝试URL: {test_url}")
+            time.sleep(0.5)
+            response = requests.get(
+                test_url,
+                proxies=proxies,
+                headers=headers,
+                timeout=CONNECTION_TIMEOUT
+            )
+            
+            if response.status_code in [200, 204]:
+                latency = int((time.time() - start_time) * 1000)
                 if DEBUG_MODE:
-                    print(f"测试节点: {node['name']} - 尝试URL: {test_url}")
-                time.sleep(0.5)
-                response = requests.get(
-                    test_url,
-                    proxies=proxies,
-                    headers=headers,
-                    timeout=CONNECTION_TIMEOUT
-                )
-                
-                if response.status_code in [200, 204]:
-                    latency = int((time.time() - start_time) * 1000)
-                    if DEBUG_MODE:
-                        print(f"测试成功: {node['name']} - URL: {test_url} - 延迟: {latency}ms")
-                    return latency
-                else:
-                    if DEBUG_MODE:
-                        print(f"测试URL状态码错误: {response.status_code}")
-            except Exception as e:
-                time.sleep(0.5)
+                    print(f"测试成功: {node['name']} - URL: {test_url} - 延迟: {latency}ms")
+                return latency
+            else:
                 if DEBUG_MODE:
-                    print(f"测试失败: {test_url} - 错误: {str(e)}")
-                continue  # 尝试下一个URL
+                    print(f"测试URL状态码错误: {response.status_code}")
+        except Exception as e:
+            time.sleep(0.5)
+            if DEBUG_MODE:
+                print(f"测试失败: {test_url} - 错误: {str(e)}")
+            continue  # 尝试下一个URL
         
         # 所有URL测试都失败
         if DEBUG_MODE:
